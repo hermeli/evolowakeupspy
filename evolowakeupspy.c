@@ -342,38 +342,37 @@ uint16_t SINE_LUT[80]={
 int  main()
 {
 	uint8_t id;
-  	uint32_t adc;
+	uint32_t adc;
 	uint32_t i;	
 	float adVolt,daVolt;
-    uint16_t daVal,adVal;
-    
-    printf("Evolo Wake-Up Spy Version 1.0\r\n");
-    printf("-----------------------------\r\n");
-    printf("STEP_TIME=%dms SAMPLE_TIME=%dms\r\n",TIME_LEVEL/1000,TIME_SAMPLE/1000);
-    
-    if (!bcm2835_init())
-        return 1;
-    bcm2835_spi_begin();
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST );      // The default
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE1);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8192); // The default
-    bcm2835_gpio_fsel(SPICS, BCM2835_GPIO_FSEL_OUTP);//
-    bcm2835_gpio_write(SPICS, HIGH);
-    bcm2835_gpio_fsel(DRDY, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_set_pud(DRDY, BCM2835_GPIO_PUD_UP);    	
+	uint16_t daVal,adVal;
+   
+	printf("Evolo Wake-Up Spy Version 1.0\r\n");
+	printf("-----------------------------\r\n");
+	printf("STEP_TIME=%dms SAMPLE_TIME=%dms\r\n",TIME_LEVEL/1000,TIME_SAMPLE/1000);
+	
+	if (!bcm2835_init())
+		return 1;
+	bcm2835_spi_begin();
+	bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST );      // The default
+	bcm2835_spi_setDataMode(BCM2835_SPI_MODE1);                   // The default
+	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8192); // The default
+	bcm2835_gpio_fsel(SPICS, BCM2835_GPIO_FSEL_OUTP);//
+	bcm2835_gpio_write(SPICS, HIGH);
+	bcm2835_gpio_fsel(DRDY, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_set_pud(DRDY, BCM2835_GPIO_PUD_UP);    	
 
 	id = ADS1256_ReadChipID(); 
 	if (id != 3)
 		printf("Error, ASD1256 Chip ID = 0x%d\r\n", (int)id);
 	else
 		printf("Ok, ASD1256 Chip ID = 0x%d\r\n", (int)id);
-
+	
 	ADS1256_CfgADC(ADS1256_GAIN_1);
+	daVolt = VOLT_UPPER;
     
-    daVolt = VOLT_UPPER;
-    
-    while(1)
-    {	
+	while(1)
+	{	
 		// Setting new output voltage
 		daVal = VoltToHex16(daVolt);
 		Write_DAC8552(0x30,daVal);    	//Write channel A buffer (0x30)  
@@ -402,9 +401,7 @@ int  main()
 		daVolt = daVolt - VOLT_STEP;
 		if (daVolt < VOLT_LOWER) 
 			daVolt = VOLT_UPPER;
-		
 	}
-    
     bcm2835_spi_end();
     bcm2835_close();
 	
