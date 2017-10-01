@@ -231,14 +231,10 @@ void ADS1256_WaitDRDY(void)
 	for (i = 0; i < 400000; i++)
 	{
 		if (DRDY_IS_LOW())
-		{
 			break;
-		}
 	}
 	if (i >= 400000)
-	{
 		printf("ADS1256_WaitDRDY() Time Out ...\r\n");		
-	}
 }
 
 /***********************************************************************
@@ -250,7 +246,7 @@ void ADS1256_WaitDRDY(void)
 static int32_t ADS1256_ReadData(void)
 {
 	uint32_t read = 0;
-    static uint8_t buf[3];
+	static uint8_t buf[3];
 
 	CS_0();	/* SPI   cs = 0 */
 
@@ -258,24 +254,15 @@ static int32_t ADS1256_ReadData(void)
 	ADS1256_DelayDATA();	/*delay time  */
 
 	/*Read the sample results 24bit*/
-    buf[0] = ADS1256_Recive8Bit();
-    buf[1] = ADS1256_Recive8Bit();
-    buf[2] = ADS1256_Recive8Bit();
+	buf[0] = ADS1256_Recive8Bit();
+	buf[1] = ADS1256_Recive8Bit();
+	buf[2] = ADS1256_Recive8Bit();
 
-    read = ((uint32_t)buf[0] << 16) & 0x00FF0000;
-    read |= ((uint32_t)buf[1] << 8) & 0x0000FF00;
-    read |= buf[2];
+	read = ((uint32_t)buf[0] << 16) & 0x00FF0000;
+	read |= ((uint32_t)buf[1] << 8) & 0x0000FF00;
+	read |= buf[2];
 
 	CS_1();
-
-	/* Extend a signed number*/
-    /*
-    if (read & 0x800000)
-    {
-	    read |= 0xFF000000;
-    }
-    */
-
 	return (int32_t)read;
 }
 
@@ -290,12 +277,12 @@ void Write_DAC8552(uint8_t channel, uint16_t Data)
 {
 	uint8_t i;
 
-	 CS1_1() ;
-	 CS1_0() ;
-      bcm2835_spi_transfer(channel);
-      bcm2835_spi_transfer((Data>>8));
-      bcm2835_spi_transfer((Data&0xff));  
-      CS1_1() ;
+	CS1_1() ;
+	CS1_0() ;
+	bcm2835_spi_transfer(channel);
+	bcm2835_spi_transfer((Data>>8));
+	bcm2835_spi_transfer((Data&0xff));  
+	CS1_1() ;
 }
 /***********************************************************************
 *	name: VoltToHex16
@@ -402,8 +389,7 @@ int  main()
 		if (daVolt < VOLT_LOWER) 
 			daVolt = VOLT_UPPER;
 	}
-    bcm2835_spi_end();
-    bcm2835_close();
-	
-    return 0;
+	bcm2835_spi_end();
+	bcm2835_close();
+	return 0;
 }
