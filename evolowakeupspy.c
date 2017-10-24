@@ -1,18 +1,22 @@
-/*
+/***********************************************************************
  * evolowakeupspy.c:
  * 
  * This is the code for a DC supply with integrated high current
  * trigger used to monitor the wake-up circuit of a "evolo" digital
  * door lock. Hardware is based on the "High performance AD/DA 
- * converter" addon board for Raspberry-Pi. 
- */
- 
+ * converter" addon board for Raspberry-Pi.
+ * 
+ * A TLV4112 Op-Amp with a gain of 2 is used as a high current driver.
+ * DAC0: Source voltage output (1/2 of Output Voltage)
+ * ADC0: Feedback from Output Voltage (6 Ohms sense resistor) 
+ **********************************************************************/
 #include <bcm2835.h>  
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#include <time.h>
 
 #define DRDY  RPI_GPIO_P1_11         	//P0
 #define RST  RPI_GPIO_P1_12     		//P1
@@ -34,9 +38,7 @@
 
 #define DAC_CHANNELA   0x30
 #define DAC_CHANNELB   0x34
-
 void ADS1256_WaitDRDY(void);
-
 typedef enum {FALSE = 0, TRUE = !FALSE} bool;
 
 /* gain channelÓ */
@@ -91,12 +93,8 @@ void  bsp_DelayUS(uint64_t micros)
 {
 		bcm2835_delayMicroseconds (micros);
 }
-
 /***********************************************************************
-*	name: ADS1256_Send8Bit
-*	function: SPI bus to send 8 bit data
-*	parameter: _data:  data
-*	The return value: NULL
+* ADS1256_Send8Bit(uint8_t _data)
 ***********************************************************************/
 static void ADS1256_Send8Bit(uint8_t _data)
 {
@@ -105,8 +103,7 @@ static void ADS1256_Send8Bit(uint8_t _data)
 }
 
 /***********************************************************************
-*	name: ADS1256_CfgADC
-*	function: The configuration parameters of ADC
+* ADS1256_CfgADC(ADS1256_GAIN_E _gain)
 ***********************************************************************/
 void ADS1256_CfgADC(ADS1256_GAIN_E _gain)
 {	
@@ -125,10 +122,7 @@ void ADS1256_CfgADC(ADS1256_GAIN_E _gain)
 }
 
 /***********************************************************************
-*	name: ADS1256_DelayDATA
-*	function: delay
-*	parameter: NULL
-*	The return value: NULL
+* ADS1256_DelayDATA(void)
 ***********************************************************************/
 static void ADS1256_DelayDATA(void)
 {
@@ -140,10 +134,7 @@ static void ADS1256_DelayDATA(void)
 }
 
 /***********************************************************************
-*	name: ADS1256_Recive8Bit
-*	function: SPI bus receive function
-*	parameter: NULL
-*	The return value: NULL
+* ADS1256_Recive8Bit(void)
 ***********************************************************************/
 static uint8_t ADS1256_Recive8Bit(void)
 {
@@ -153,11 +144,7 @@ static uint8_t ADS1256_Recive8Bit(void)
 }
 
 /***********************************************************************
-*	name: ADS1256_WriteReg
-*	function: Write the corresponding register
-*	parameter: _RegID: register  ID
-*			 _RegValue: register Value
-*	The return value: NULL
+* ADS1256_WriteReg(uint8_t _RegID, uint8_t _RegValue)
 ***********************************************************************/
 static void ADS1256_WriteReg(uint8_t _RegID, uint8_t _RegValue)
 {
@@ -169,10 +156,7 @@ static void ADS1256_WriteReg(uint8_t _RegID, uint8_t _RegValue)
 }
 
 /***********************************************************************
-*	name: ADS1256_ReadReg
-*	function: Read  the corresponding register
-*	parameter: _RegID: register  ID
-*	The return value: read register value
+* ADS1256_ReadReg(uint8_t _RegID)
 ***********************************************************************/
 static uint8_t ADS1256_ReadReg(uint8_t _RegID)
 {
@@ -189,12 +173,8 @@ static uint8_t ADS1256_ReadReg(uint8_t _RegID)
 
 	return read;
 }
-
 /***********************************************************************
-*	name: ADS1256_WriteCmd
-*	function: Sending a single byte order
-*	parameter: _cmd : command
-*	The return value: NULL
+* ADS1256_WriteCmd(uint8_t _cmd)
 ***********************************************************************/
 static void ADS1256_WriteCmd(uint8_t _cmd)
 {
@@ -204,10 +184,7 @@ static void ADS1256_WriteCmd(uint8_t _cmd)
 }
 
 /***********************************************************************
-*	name: ADS1256_ReadChipID
-*	function: Read the chip ID
-*	parameter: _cmd : NULL
-*	The return value: four high status register
+* ADS1256_ReadChipID(void)
 ***********************************************************************/
 uint8_t ADS1256_ReadChipID(void)
 {
@@ -219,10 +196,7 @@ uint8_t ADS1256_ReadChipID(void)
 }
 
 /***********************************************************************
-*	name: ADS1256_WaitDRDY
-*	function: delay time  wait for automatic calibration
-*	parameter:  NULL
-*	The return value:  NULL
+* ADS1256_WaitDRDY(void)
 ***********************************************************************/
 void ADS1256_WaitDRDY(void)
 {
@@ -238,10 +212,7 @@ void ADS1256_WaitDRDY(void)
 }
 
 /***********************************************************************
-*	name: ADS1256_ReadData
-*	function: read ADC value
-*	parameter: NULL
-*	The return value:  NULL
+* ADS1256_ReadData(void)
 ***********************************************************************/
 static int32_t ADS1256_ReadData(void)
 {
@@ -265,13 +236,8 @@ static int32_t ADS1256_ReadData(void)
 	CS_1();
 	return (int32_t)read;
 }
-
 /***********************************************************************
-*	name: Write_DAC8552
-*	function:  DAC send data 
-*	parameter: channel : output channel number 
-*			   data : output DAC value 
-*	The return value:  NULL
+* Write_DAC8552(uint8_t channel, uint16_t Data)
 ***********************************************************************/
 void Write_DAC8552(uint8_t channel, uint16_t Data)
 {
@@ -285,67 +251,71 @@ void Write_DAC8552(uint8_t channel, uint16_t Data)
 	CS1_1() ;
 }
 /***********************************************************************
-*	name: VoltToHex16
-***********************************************************************/
-uint16_t VoltToHex16(float volt)
-{
-	// reference voltage must be 5.0V!
-	return (uint16_t)(0xFFFF*volt/5.0);
-}
-/***********************************************************************
 *	name: Hex16ToVolt
 ***********************************************************************/
 float Hex16ToVolt(uint16_t hex16)
 {
-	return (float)      ((int16_t)hex16)/0x8000*5.0;
+	return (float) ((int16_t)hex16)/0x8000*5.0;
 }
 /***********************************************************************
-*	name: main
-*	function:  
-*	parameter: NULL
-*	The return value:  NULL
+* VoltageConvert(float Vref, float voltage)
+*
+* Map voltage from 0 to Vref to uint16 Value
+* (_D_ seems to be necessary (compiler optimization?))
 ***********************************************************************/
-
-uint16_t SINE_LUT[80]={
-0x8000,0x8a0a,0x9405,0x9de1,0xa78d,0xb0fb,0xba1c,0xc2e0,
-0xcb3c,0xd320,0xda82,0xe154,0xe78d,0xed22,0xf20c,0xf641,
-0xf9bb,0xfc76,0xfe6c,0xff9a,0xffff,0xff9a,0xfe6c,0xfc76,
-0xf9bb,0xf641,0xf20c,0xed22,0xe78d,0xe154,0xda82,0xd320,
-0xcb3c,0xc2e0,0xba1c,0xb0fb,0xa78d,0x9de1,0x9405,0x8a0a,
-0x8000,0x75f5,0x6bfa,0x621e,0x5872,0x4f04,0x45e3,0x3d1f,
-0x34c3,0x2cdf,0x257d,0x1eab,0x1872,0x12dd,0xdf3,0x9be,
-0x644,0x389,0x193,0x65,0x0,0x65,0x193,0x389,
-0x644,0x9be,0xdf3,0x12dd,0x1872,0x1eab,0x257d,0x2cdf,
-0x34c3,0x3d1f,0x45e3,0x4f04,0x5872,0x621e,0x6bfa,0x75f5
-};
-
+uint16_t VoltageConvert(float Vref, float voltage)
+{
+	uint16_t _D_;
+	_D_ = (uint16_t)(65536 * voltage / Vref);
+	return _D_;
+}
+/***********************************************************************
+* SetOutputVoltage(float Vout)
+* 
+* Output OP-AMP has a gain of 2, so we need to set the DAC to 1/2
+* voltage. 
+***********************************************************************/
+void SetOutputVoltage(float Vout)
+{
+	float daVolt = Vout/2.0;
+	uint16_t daVal = VoltageConvert(3.3, daVolt);
+	Write_DAC8552(0x30, daVal);
+}
+/***********************************************************************
+*	main
+***********************************************************************/
 #define VOLT_UPPER	3.7
 #define VOLT_LOWER	2.5
-#define VOLT_STEP	0.1
+#define VOLT_STEP	0.01
 #define DVOLT_TRIGGER	0.1
 
-#define TIME_LEVEL 	10000000
-#define TIME_SAMPLE	10000
+#define TIME_LEVEL 	1000000		// 1 Sek for each voltage level
+#define TIME_SAMPLE	10000   	// 10 msec sample time for supervisor
+#define TIME_SETTLE 1000 		// 1 msec until voltage should be stable
+
 int  main()
 {
 	uint8_t id;
 	uint32_t adc;
 	uint32_t i;	
-	float adVolt,daVolt;
+	float adVolt,outVolt;
+	float step;
 	uint16_t daVal,adVal;
+	time_t t;
    
 	printf("Evolo Wake-Up Spy Version 1.0\r\n");
 	printf("-----------------------------\r\n");
-	printf("STEP_TIME=%dms SAMPLE_TIME=%dms\r\n",TIME_LEVEL/1000,TIME_SAMPLE/1000);
+	printf("STEP_TIME=%dms SAMPLE_TIME=%dms SETTLE_TIME=%dms\r\n",TIME_LEVEL/1000,TIME_SETTLE/1000);
 	
 	if (!bcm2835_init())
 		return 1;
 	bcm2835_spi_begin();
 	bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST );      // The default
 	bcm2835_spi_setDataMode(BCM2835_SPI_MODE1);                   // The default
-	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8192); // The default
+	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16); // The default
 	bcm2835_gpio_fsel(SPICS, BCM2835_GPIO_FSEL_OUTP);//
 	bcm2835_gpio_write(SPICS, HIGH);
+	
 	bcm2835_gpio_fsel(DRDY, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_set_pud(DRDY, BCM2835_GPIO_PUD_UP);    	
 
@@ -356,14 +326,25 @@ int  main()
 		printf("Ok, ASD1256 Chip ID = 0x%d\r\n", (int)id);
 	
 	ADS1256_CfgADC(ADS1256_GAIN_1);
-	daVolt = VOLT_UPPER;
+	outVolt = VOLT_UPPER;
+	step = -VOLT_STEP;
+    
+    SetOutputVoltage(outVolt); 
+    printf("Waiting 5 Secs...\n");
+    bsp_DelayUS(5000000);
+    
+    time(&t);
+    printf("Starting test at %s",ctime(&t));
     
 	while(1)
 	{	
 		// Setting new output voltage
-		daVal = VoltToHex16(daVolt);
-		Write_DAC8552(0x30,daVal);    	//Write channel A buffer (0x30)  
-		printf("Setting new output voltage %.02f V\r\n",daVolt);
+		SetOutputVoltage(outVolt); 
+		
+		// time(&t);
+		// printf("%.02fV | %s",outVolt,ctime(&t));
+		
+		bsp_DelayUS(TIME_SETTLE);
 		
 		i=0;
 		while(TIME_SAMPLE * i < TIME_LEVEL)
@@ -375,9 +356,10 @@ int  main()
 			// printf("-> adVal=0x%04X adVolt=%f\r\n",adVal,adVolt);
 		
 			// check if data is inside window
-			if (daVolt - adVolt > DVOLT_TRIGGER)
+			if ( outVolt - adVolt > DVOLT_TRIGGER)
 			{
-				printf("Wakeup Trigger: Soll=%f Ist=%f\r\n",daVolt,adVolt);
+				time(&t);
+				printf("Wakeup Trigger: Soll=%fV Ist=%fV | %s",outVolt,adVolt,ctime(&t));
 			}
 			
 			// wait
@@ -385,9 +367,12 @@ int  main()
 			i++;
 		}
 		
-		daVolt = daVolt - VOLT_STEP;
-		if (daVolt < VOLT_LOWER) 
-			daVolt = VOLT_UPPER;
+		// set next output voltage
+		outVolt = outVolt + step;
+		
+		// eventually set direction of output voltage positive or negative
+		if ( (outVolt < VOLT_LOWER) || (outVolt > VOLT_UPPER) )
+			step *= -1;
 	}
 	bcm2835_spi_end();
 	bcm2835_close();
